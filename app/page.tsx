@@ -1,101 +1,148 @@
-import Image from "next/image";
+import SearchBar from '@/components/SearchBar'
+import ArtistCard from '@/components/ArtistCard'
+import { supabase } from '@/lib/supabase'
 
-export default function Home() {
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
+async function getStats() {
+  const { count: total } = await supabase
+    .from('artists')
+    .select('*', { count: 'exact', head: true })
+
+  const { count: confirmed } = await supabase
+    .from('artists')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'confirmed_human')
+
+  const { count: flagged } = await supabase
+    .from('artists')
+    .select('*', { count: 'exact', head: true })
+    .in('status', ['suspected_ai', 'confirmed_ai'])
+
+  return {
+    total: total || 0,
+    confirmed: confirmed || 0,
+    flagged: flagged || 0,
+  }
+}
+
+async function getRecentArtists() {
+  const { data } = await supabase
+    .from('artists')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(6)
+
+  return data || []
+}
+
+export default async function Home() {
+  const [stats, recentArtists] = await Promise.all([getStats(), getRecentArtists()])
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-gray-50 to-white py-16 md:py-24">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Is This Artist Human or AI?
+          </h1>
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            The authoritative database tracking authenticity in music. Search for any artist to see their verification status.
+          </p>
+          <div className="flex justify-center mb-12">
+            <SearchBar size="lg" />
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
+          {/* Stats - Clickable */}
+          <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto">
+            <a
+              href="/artists?filter=all"
+              className="group cursor-pointer hover:scale-105 transition-transform"
+            >
+              <div className="text-3xl font-bold text-gray-900 group-hover:text-gray-700">{stats.total}</div>
+              <div className="text-sm text-gray-500">Artists Tracked</div>
+            </a>
+            <a
+              href="/artists?filter=confirmed_human"
+              className="group cursor-pointer hover:scale-105 transition-transform"
+            >
+              <div className="text-3xl font-bold text-green-600 group-hover:text-green-500">{stats.confirmed}</div>
+              <div className="text-sm text-gray-500">Confirmed Human</div>
+            </a>
+            <a
+              href="/artists?filter=suspected_ai"
+              className="group cursor-pointer hover:scale-105 transition-transform"
+            >
+              <div className="text-3xl font-bold text-yellow-600 group-hover:text-yellow-500">{stats.flagged}</div>
+              <div className="text-sm text-gray-500">Flagged as AI</div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Mission Statement */}
+      <section className="py-12 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Our Mission</h2>
+          <p className="text-gray-600">
+            As AI-generated music becomes increasingly sophisticated, listeners deserve transparency.
+            PeopleMusic maintains a verified database of artists, distinguishing human creators from
+            AI-generated content. We believe in supporting authentic human artistry while acknowledging
+            the evolving landscape of music creation.
+          </p>
+        </div>
+      </section>
+
+      {/* Submit CTA - Moved above Recently Added */}
+      <section className="py-12 bg-white border-t border-gray-100">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/submit"
+            className="inline-block bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 mb-6"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
+            Submit an Artist
           </a>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Know an artist we should add?</h2>
+          <p className="text-gray-600">
+            Help us build the most comprehensive database of verified artists. Submit information
+            about artists you believe should be included.
+          </p>
+        </div>
+      </section>
+
+      {/* Recent Additions */}
+      {recentArtists.length > 0 && (
+        <section className="py-12 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Recently Added</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recentArtists.map((artist) => (
+                <ArtistCard key={artist.id} artist={artist} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Support CTA - Full button below Recently Added */}
+      <section className="py-16 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Support This Project</h2>
+          <p className="text-gray-600 mb-8">
+            PeopleMusic is an independent project. Your support helps us maintain the database,
+            improve verification methods, and keep the service free for everyone.
+          </p>
           <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/support"
+            className="inline-block w-full max-w-md bg-black text-white px-8 py-4 rounded-lg font-medium text-lg hover:bg-gray-800"
           >
-            Read our docs
+            Support PeopleMusic
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
     </div>
-  );
+  )
 }
